@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>相霄 — 前端工程师 × Agent Harness</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet">
+<style>
+/* ===========================================
+   FIXED 16:9 STAGE: MANDATORY BASE STYLES
+   =========================================== */
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #1C2644; }
+.deck-viewport { position: fixed; inset: 0; overflow: hidden; background: #1C2644; }
+.deck-stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; transform-origin: 0 0; background: #1C2644; }
+.slide { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: hidden; display: block; visibility: hidden; opacity: 0; pointer-events: none; background: #1C2644; }
+.slide.active, .slide.visible { visibility: visible; opacity: 1; pointer-events: auto; z-index: 1; }
+img, video, canvas, svg { max-width: 100%; max-height: 100%; }
+.deck-controls { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 1000; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.2s !important; }
+}
+@media print {
+  html, body { width: 1920px; height: auto; overflow: visible; background: #fff; }
+  .deck-viewport { position: static; overflow: visible; background: #fff; }
+  .deck-stage { position: static; width: auto; height: auto; transform: none !important; background: none; }
+  .slide { position: relative; display: block !important; visibility: visible !important; opacity: 1 !important; pointer-events: auto !important; width: 1920px; height: 1080px; break-after: page; }
+  .slide:last-child { break-after: auto; }
+  .deck-controls { display: none !important; }
+}
+
+/* ===========================================
+   SIGNAL DESIGN SYSTEM — Fixed 1920×1080
+   =========================================== */
+:root {
+  /* Surfaces */
+  --navy: #1C2644;
+  --navy-alt: #232F55;
+  --cream: #F0ECE3;
+  --cream-alt: #E6E0D4;
+  /* Text on navy */
+  --text-warm: #E2DCD0;
+  --text-muted-dark: #8A96A8;
+  --text-hint-dark: #4E5A6E;
+  /* Text on cream */
+  --ink: #1A2030;
+  --text-muted-light: #5A6270;
+  --text-hint-light: #9AA0A8;
+  /* Accent */
+  --gold: #C8A870;
+  /* Borders */
+  --border-dark: #2E3D5C;
+  --border-light: #CAC4B4;
+  /* Layout at 1920×1080 */
+  --pad-x: 144px;
+  --pad-y: 60px;
+  --gap-lg: 44px;
+  --gap-md: 28px;
+  --gap-sm: 14px;
+  /* Typography at 1920 */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Grid texture on dark slides */
+.slide.navy::before {
+  content: '';
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 80px 80px;
+}
+
+/* Surfaces */
+.slide.navy { background: var(--navy); }
+.slide.cream { background: var(--cream); }
+
+/* Slide layout: chrome + content + foot */
+.slide-inner {
+  position: relative; z-index: 1;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100%;
+  padding: var(--pad-y) var(--pad-x);
+  box-sizing: border-box;
+}
+
+/* Chrome bar */
+.chrome { display: flex; justify-content: space-between; align-items: center; padding-bottom: var(--gap-sm); border-bottom: 1px solid var(--border-dark); margin-bottom: var(--gap-md); }
+.slide.cream .chrome { border-bottom-color: var(--border-light); }
+.chrome-label { font: 500 13px/1 'IBM Plex Mono','Noto Sans SC',monospace; color: var(--gold); letter-spacing: 0.14em; text-transform: uppercase; }
+.slide.cream .chrome-label { color: var(--gold); }
+.chrome-counter { font: 400 13px/1 'IBM Plex Mono','Noto Sans SC',monospace; color: var(--text-hint-dark); }
+.slide.cream .chrome-counter { color: var(--text-hint-light); }
+
+/* Foot bar */
+.foot { display: flex; justify-content: space-between; padding-top: var(--gap-sm); border-top: 1px solid var(--border-dark); margin-top: var(--gap-md); font: 400 13px/1 'IBM Plex Mono','Noto Sans SC',monospace; color: var(--text-hint-dark); }
+.slide.cream .foot { border-top-color: var(--border-light); color: var(--text-hint-light); }
+
+/* Content area */
+.content { display: flex; flex-direction: column; justify-content: center; min-height: 0; }
+
+/* Typography */
+.t-display { font: 700 120px/0.96 'Source Serif 4','Noto Sans SC',Georgia,serif; letter-spacing: -0.02em; }
+.t-h1 { font: 600 100px/1.08 'Source Serif 4','Noto Sans SC',Georgia,serif; letter-spacing: -0.01em; }
+.t-h2 { font: 600 58px/1.18 'Source Serif 4','Noto Sans SC',Georgia,serif; }
+.t-h3 { font: 500 36px/1.3 'Source Serif 4','Noto Sans SC',Georgia,serif; }
+.t-lead { font: 400 27px/1.58 'DM Sans','Noto Sans SC',system-ui,sans-serif; }
+.t-body { font: 400 20px/1.65 'DM Sans','Noto Sans SC',system-ui,sans-serif; }
+.t-caption { font: 400 16px/1.5 'DM Sans','Noto Sans SC',system-ui,sans-serif; }
+.t-label { font: 500 13px/1 'IBM Plex Mono','Noto Sans SC',monospace; letter-spacing: 0.14em; text-transform: uppercase; }
+.t-stat { font: 600 106px/1 'Source Serif 4','Noto Sans SC',Georgia,serif; letter-spacing: -0.02em; color: var(--gold); }
+
+/* Gold elements */
+em, .gold { color: var(--gold); font-style: italic; }
+.slide.navy .t-h1, .slide.navy .t-h2, .slide.navy .t-h3 { color: var(--text-warm); }
+.slide.navy .t-lead, .slide.navy .t-body { color: var(--text-muted-dark); }
+.slide.navy .t-body strong { color: var(--text-warm); font-weight: 500; }
+.slide.cream .t-h1, .slide.cream .t-h2, .slide.cream .t-h3 { color: var(--ink); }
+.slide.cream .t-lead, .slide.cream .t-body { color: var(--text-muted-light); }
+.slide.cream .t-body strong { color: var(--ink); font-weight: 500; }
+
+/* Short gold rule */
+.rule-gold { width: 36px; height: 1px; background: var(--gold); margin-bottom: var(--gap-md); }
+
+/* Full hairline rule */
+.rule-full { width: 100%; height: 1px; background: var(--border-dark); margin: var(--gap-md) 0; }
+.slide.cream .rule-full { background: var(--border-light); }
+
+/* Bullet: em-dash gold mono */
+ul.bullets { list-style: none; padding: 0; margin: 0; }
+ul.bullets li { position: relative; padding-left: 28px; margin-bottom: 10px; }
+ul.bullets li::before { content: '—'; position: absolute; left: 0; color: var(--gold); font-family: 'IBM Plex Mono','Noto Sans SC',monospace; font-size: 14px; }
+
+/* Colored surface override for cream bullets */
+.slide.cream ul.bullets li::before { color: var(--gold); }
+
+/* Stat cards grid */
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap-lg); }
+.stat-card { border-top: 1px solid var(--border-dark); padding: var(--gap-md) var(--gap-md) var(--gap-md) 0; }
+.slide.cream .stat-card { border-top-color: var(--border-light); }
+.stat-card .t-stat { margin-bottom: 8px; font-size: 80px; }
+.stat-card .t-label { color: var(--gold); margin-bottom: 10px; }
+.stat-card .t-body { font-size: 18px; }
+
+/* Two column */
+.cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap-lg); }
+
+/* Table */
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th { font: 500 13px/1 'IBM Plex Mono','Noto Sans SC',monospace; color: var(--gold); letter-spacing: 0.14em; text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border-dark); }
+.data-table td { padding: 14px 16px; border-bottom: 1px solid rgba(46,61,92,0.4); vertical-align: top; }
+.data-table td:first-child { font-weight: 600; color: var(--text-warm); font-family: 'Source Serif 4','Noto Sans SC',Georgia,serif; font-size: 22px; white-space: nowrap; }
+.slide.cream .data-table th { border-bottom-color: var(--border-light); }
+.slide.cream .data-table td { border-bottom-color: rgba(202,196,180,0.4); }
+.slide.cream .data-table td:first-child { color: var(--ink); }
+
+/* Cover — chromeless */
+.cover .slide-inner { grid-template-rows: 1fr; place-items: center; text-align: center; }
+.cover .content { gap: var(--gap-sm); }
+.cover .t-display { color: var(--gold); font-size: 140px; }
+.slide.cream.cover .t-display { color: var(--ink); }
+.cover .t-lead { color: var(--text-muted-dark); max-width: 700px; }
+.slide.cream.cover .t-lead { color: var(--text-muted-light); }
+
+/* Chapter — chromeless */
+.chapter .slide-inner { grid-template-rows: 1fr; }
+.chapter .content { justify-content: center; gap: var(--gap-sm); }
+.chapter .chapter-num { font: 500 14px/1 'IBM Plex Mono','Noto Sans SC',monospace; color: var(--gold); letter-spacing: 0.22em; }
+
+/* Animations */
+.reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out); }
+.slide.visible .reveal { opacity: 1; transform: translateY(0); }
+.reveal:nth-child(1) { transition-delay: 0.05s; }
+.reveal:nth-child(2) { transition-delay: 0.12s; }
+.reveal:nth-child(3) { transition-delay: 0.19s; }
+.reveal:nth-child(4) { transition-delay: 0.26s; }
+.reveal:nth-child(5) { transition-delay: 0.33s; }
+.reveal:nth-child(6) { transition-delay: 0.40s; }
+.reveal:nth-child(7) { transition-delay: 0.47s; }
+.reveal:nth-child(8) { transition-delay: 0.54s; }
+.reveal:nth-child(9) { transition-delay: 0.61s; }
+.reveal:nth-child(10) { transition-delay: 0.68s; }
+</style>
+</head>
+<body>
+<div class="deck-viewport">
+<main class="deck-stage" id="deckStage">
+
+<!-- =========================================
+     SLIDE 1: COVER (Cream, chromeless)
+     ========================================= -->
+<section class="slide cream cover active visible">
+  <div class="slide-inner">
+    <div class="content reveal">
+      <p class="t-label gold" style="color:var(--gold)">SENIOR FRONTEND ENGINEER × AGENT HARNESS</p>
+      <div class="rule-gold" style="margin:24px auto 32px"></div>
+      <h1 class="t-display">相霄</h1>
+      <p class="t-lead" style="margin-top:16px">10 余年工程实践 · 企业级基建架构 · Agent 产品落地</p>
+      <p class="t-caption" style="margin-top:32px;color:var(--text-hint-light)">
+        <a href="https://www.xxholly32.com" target="_blank" style="color:var(--ink);text-decoration:none;border-bottom:1px solid transparent;transition:border-color 0.2s,color 0.2s" onmouseover="this.style.borderBottomColor='var(--gold)';this.style.color='var(--gold)'" onmouseout="this.style.borderBottomColor='transparent';this.style.color='var(--ink)'">www.xxholly32.com</a>
+        &nbsp;·&nbsp;
+        <a href="https://github.com/xxholly32" target="_blank" style="color:var(--ink);text-decoration:none;border-bottom:1px solid transparent;transition:border-color 0.2s,color 0.2s" onmouseover="this.style.borderBottomColor='var(--gold)';this.style.color='var(--gold)'" onmouseout="this.style.borderBottomColor='transparent';this.style.color='var(--ink)'">github.com/xxholly32</a>
+        &nbsp;·&nbsp;
+        <a href="mailto:xxholly32@163.com" style="color:var(--ink);text-decoration:none;border-bottom:1px solid transparent;transition:border-color 0.2s,color 0.2s" onmouseover="this.style.borderBottomColor='var(--gold)';this.style.color='var(--gold)'" onmouseout="this.style.borderBottomColor='transparent';this.style.color='var(--ink)'">xxholly32@163.com</a>
+        &nbsp;·&nbsp;
+        浙江·杭州
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================
+     SLIDE 2: PROFILE (Navy)
+     ========================================= -->
+<section class="slide navy">
+  <div class="slide-inner">
+    <div class="chrome reveal">
+      <span class="chrome-label">Profile</span>
+      <span class="chrome-counter">01 / 10</span>
+    </div>
+    <div class="content">
+      <p class="t-label reveal" style="color:var(--gold);margin-bottom:var(--gap-sm)">个人优势</p>
+      <h2 class="t-h2 reveal" style="margin-bottom:var(--gap-md)">资深前端工程化 <em>×</em> Agent 实践者</h2>
+      <p class="t-lead reveal" style="max-width:1400px">
+        10 余年前端工程化与架构经验。作为<strong>综合安防产品前端负责人</strong>（管理 20+ 人跨地域团队），主导的产品年销量超 <em>2w+</em> 套。兼任 <strong>AI 业务负责人</strong>，主导落地多个企业级智能体项目。
+      </p>
+      <div class="rule-full reveal" style="margin:var(--gap-lg) 0"></div>
+      <div class="stat-grid">
+        <div class="stat-card reveal"><div class="t-stat">10+</div><p class="t-label">年前端经验</p><p class="t-body">从组件库到底层工程链的完整架构能力</p></div>
+        <div class="stat-card reveal"><div class="t-stat">2M</div><p class="t-label">组件库下载</p><p class="t-body">HUI 成为公司前端基石，800+ 版本发布，80+ 贡献者参与</p></div>
+        <div class="stat-card reveal"><div class="t-stat">80+</div><p class="t-label">应用托管</p><p class="t-body">Easy Serverless 支持前端 / Docker / K8s 部署</p></div>
+      </div>
+    </div>
+    <div class="foot reveal"><span>Signal · Resume 2026</span><span>Sponsor: Element Plus · antfu · Evan You</span></div>
+  </div>
+</section>
+
+<!-- =========================================
+     SLIDE 3: LEADERSHIP (Navy)
+     ========================================= -->
+<section class="slide navy">
+  <div class="slide-inner">
+    <div class="chrome reveal"><span class="chrome-label">Experience</span><span class="chrome-counter">02 / 10</span></div>
+    <div class="content">
+      <p class="t-label reveal" style="color:var(--gold);margin-bottom:var(--gap-sm)">海康威视 · 2015–至今</p>
+      <h2 class="t-h2 reveal" style="margin-bottom:var(--gap-lg)">前端技术负责人</h2>
+      <div class="cols-2" style="gap:var(--gap-lg)">
+        <div class="reveal">
+          <h3 class="t-h3" style="margin-bottom:var(--gap-sm)">团队领导</h3>
+          <p class="t-body" style="margin-bottom:var(--gap-md)">
+            带领 <strong>20+ 人跨地域前端团队</strong>（含成都 5 人），负责综合安防产品线的前端技术架构与团队梯队建设，统筹多条业务线的技术路线。
+          </p>
+          <h3 class="t-h3" style="margin-bottom:var(--gap-sm)">AI 业务负责人</h3>
+          <p class="t-body">
+            主导落地多个<strong>企业级智能体项目</strong>，制定团队 AI 辅助编码规范，推动 AI 辅助开发的工作流程，重塑研发效能。
+          </p>
+        </div>
+        <div class="reveal" style="border-left:1px solid var(--border-dark);padding-left:var(--gap-lg)">
+          <h3 class="t-h3" style="margin-bottom:var(--gap-sm)">技术赞助</h3>
+          <ul class="bullets t-body">
+            <li>常年 Sponsor <strong>Element Plus</strong> 团队</li>
+            <li>赞助 <strong>antfu</strong>、<strong>尤雨溪</strong> 等开源作者</li>
+            <li>持续追踪 Vue / Vite 生态发展</li>
+          </ul>
+          <h3 class="t-h3" style="margin-top:var(--gap-md);margin-bottom:var(--gap-sm)">技术愿景</h3>
+          <p class="t-body"><strong style="color:var(--gold)">降低 AI 的使用门槛</strong>，让各行各业的普通用户都能真正享受 AI 带来的效率革命。</p>
+        </div>
+      </div>
+    </div>
+    <div class="foot reveal"><span>Hikvision · Senior Frontend Lead</span><span>Core: Vue 2/3 · Vite · Agent Harness</span></div>
+  </div>
+</section>
+
+<!-- =========================================
+     SLIDE 4: HUI Component Library (Cream)
+     ========================================= -->
+<section class="slide cream">
+  <div class="slide-inner">
+    <div class="chrome reveal"><span class="chrome-label">Infrastructure</span><span class="chrome-counter">03 / 10</span></div>
+    <div class="content">
+      <p class="t-label reveal" style="color:var(--gold);margin-bottom:var(--gap-sm)">企业级组件库</p>
+      <h2 class="t-h2 reveal" style="margin-bottom:var(--gap-md)">HUI <span style="font-weight:300;color:var(--text-muted-light)">— 公司前端基石</span></h2>
+      <div class="stat-grid" style="margin-bottom:var(--gap-lg)">
+        <div class="stat-card reveal"><div class="t-stat" style="font-size:72px">2M</div><p class="t-label">内网下载量</p></div>
+        <div class="stat-card reveal"><div class="t-stat" style="font-size:72px">80+</div><p class="t-label">贡献者</p></div>
+        <div class="stat-card reveal"><div class="t-stat" style="font-size:72px">800+</div><p class="t-label">版本发布</p></div>
+        <div class="stat-card reveal"><div class="t-stat" style="font-size:72px">2000+</div><p class="t-label">解决缺陷</p></div>
+      </div>
+      <div class="cols-2 reveal">
+        <div>
+          <p class="t-body"><strong>HUI 2</strong> — 基于 Element UI 的 Vue 2 深度二次开发</p>
+          <p class="t-body"><strong>HUI 3</strong> — 基于 Element Plus 的 Vue 3 深度二次开发</p>
+        </div>
+        <div style="border-left:1px solid var(--border-light);padding-left:var(--gap-lg)">
+          <p class="t-body" style="margin-bottom:6px">融入 Vue 2/3 最佳实践与现代工程化理解</p>
+          <p class="t-body">设计组件 API 规范、主题系统、按需加载方案</p>
+          <p class="t-body">主导从 Vue 2 → Vue 3 全量技术栈迁移</p>
+        </div>
+      </div>
+    </div>
+    <div class="foot reveal"><span>Based on Element UI / Element Plus</span><span>Internal Open Source Pioneer</span></div>
+  </div>
+</section>
+
+<!-- =========================================
+     SLIDE 5: Scaffolding (Navy)
+     ========================================= -->
+<section class="slide navy">
+  <div class="slide-inner">
+    <div class="chrome reveal"><span class="chrome-label">Engineering</span><span class="chrome-counter">04 / 10</span></div>
+    <div class="content">
+      <p class="t-label reveal" style="color:var(--gold);margin-bottom:var(--gap-sm)">脚手架 & 工程化</p>
+      <h2 class="t-h2 reveal" style="margin-bottom:var(--gap-lg)">vessel-vite <span style="font-weight:300;color:var(--text-hint-dark)">— 现代化脚手架体系</span></h2>
+      <div class="cols-2" style="gap:var(--gap-lg)">
+        <div class="reveal">
+          <h3 class="t-h3" style="margin-bottom:var(--gap-sm)">技术演进</h3>
+          <div style="display:flex;gap:var(--gap-lg);margin-bottom:var(--gap-md)">
+            <div style="flex:1;border-top:2px solid var(--gold);padding-top:var(--gap-sm)">
+              <p class="t-label" style="color:var(--gold)">vessel 2</p>
+              <p class="t-body" style="margin-top:4px">Vue CLI + 插件架构</p>
+            </div>
+            <div style="flex:1;border-top:2px solid var(--gold);padding-top:var(--gap-sm)">
+              <p class="t-label" style="color:var(--gold)">vessel 3</p>
+              <p class="t-body" style="margin-top:4px">Vite + 插件架构<br>借鉴 Vitesse 设计理念</p>
+            </div>
+          </div>
+          <p class="t-body">深度集成 <strong>UnoCSS</strong>、<strong>ESLint</strong>、<strong>自动导入</strong>等现代工具链</p>
+        </div>
+        <div class="reveal" style="border-left:1px solid var(--border-dark);padding-left:var(--gap-lg)">
+          <h3 class="t-h3" style="margin-bottom:var(--gap-sm)">系列产品</h3>
+          <ul class="bullets t-body">
+            <li><strong>vessel-vite-lite</strong> — 轻量级 Web 模板</li>
+            <li><strong>vessel-vite-template</strong> — 全功能 Web 模板</li>
+            <li><strong>vessel-h5-vite-lite</strong> — 移动端 H5 模板</li>
+          </ul>
+          <div style="margin-top:var(--gap-md)">
+            <div class="t-stat" style="font-size:48px;margin-bottom:4px">5x+</div>
+            <p class="t-label" style="color:var(--gold)">构建速度提升</p>
+            <p class="t-caption" style="margin-top:4px;color:var(--text-hint-dark)">从 Webpack 全面迁移到 Vite</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot reveal"><span>Inspired by antfu's Vitesse</span><span>Web / H5 Multi-platform</span></div>
+  </div>
+</section>
+
+<!-- =========================================
+     SLIDE 6: chat-anything (Cream)
+     ========================================= -->
+<section class="slide cream">
+  <div class="slide-inner">
+    <div class="chrome reveal"><span class="chrome-label">AI Agent</span><span class="chrome-counter">05 / 10</span></div>
+    <div class="content">
+      <p class="t-label reveal" style="color:var(--gold);margin-bottom:var(--gap-sm)">React + Electron 桌面客户端</p>
+      <h2 class="t-h2 reveal" style="margin-bottom:var(--gap-md)">chat-anything <span style="font-weight:300;color:var(--text-muted-light)">— 企业 AI Agent 实践</span></h2>
+      <a href="https://www.xxholly32.com/2026/chat-anything.html" target="_blank" class="reve" style="display:inline-block;margin-bottom:var(--gap-lg);padding:14px 32px;background:var(--gold);color:#141413;border-radius:8px;font-size:18px;font-weight:600;text-decoration:none;letter-spacing:0.5px">🔗 在线体验 chat-anything</a>
+      <div class="cols-2 reveal">
+        <div>
+          <h3 class="t-h3" style="margin-bottom:var(--gap-sm)">背景</h3>
+          <p class="t-body" style="margin-bottom:var(--gap-md)">非研发人员使用 Claude Code 门槛高，且无法使用外部工具。独立开发面向内部的 AI Agent 桌面端，<strong>对接 MaaS 平台</strong>，降低使用门槛。</p>
+          <h3 class="t-h3" style="margin-bottom:var(--gap-sm)">业务落地</h3>
+          <ul class="bullets t-body">
+            <li>SaaS API → <strong>Skills 封装</strong>，Agent 可调用</li>
+            <li>落地 <strong>2 个实际项目</strong>，含全国 500 强企业</li>
+            <li>内部获得广泛好评</li>
+          </ul>
+        </div>
+        <div style="border-left:1px solid var(--border-light);padding-left:var(--gap-lg)">
+          <h3 class="t-h3" style="margin-bottom:var(--gap-sm)">核心能力</h3>
+          <ul class="bullets t-body" style="margin-bottom:var(--gap-md)">
+            <li>多模型切换 · MCP 工具调用</li>
+            <li>Skills 市场 · 文件预览与 @ 引用</li>
+          </ul>
+          <h3 class="t-h3" style="margin-bottom:var(--gap-sm)">行业困境</h3>
+          <p class="t-body" style="color:var(--ink);">国内企业<strong>无法直连外网</strong>，Agent 需客户自行采购服务器、搭建内网环境，交付链路长、运维成本高。</p>
+        </div>
+      </div>
+    </div>
+    <div class="foot reveal"><span>Desktop App: React + Electron</span><span>Integrated: MaaS · Skills · MCP · <a href="https://www.xxholly32.com/2026/chat-anything.html" target="_blank" style="color:inherit">chat-anything</a></span></div>
+  </div>
+</section>
+
+<!-- =========================================
+     SLIDE 7: Internal Open Source (Navy)
+     ========================================= -->
+<section class="slide navy">
+  <div class="slide-inner">
+    <div class="chrome reveal"><span class="chrome-label">Infrastructure</span><span class="chrome-counter">06 / 10</span></div>
+    <div class="content">
+      <p class="t-label reveal" style="color:var(--gold);margin-bottom:var(--gap-sm)">公司基建推动</p>
+      <h2 class="t-h2 reveal" style="margin-bottom:var(--gap-lg)">从 <em>0 到 1</em> 搭建前端基础设施矩阵</h2>
+      <div class="cols-2 reveal">
+        <div>
+          <ul class="bullets t-body">
+            <li><strong>内部开源文化</strong> — 建立「提 Issues → Fork → MR → Code Review」完整贡献闭环</li>
+            <li><strong>技术规范制定</strong> — 参与统一软件技术委员会，制定前端选型、代码规范、多语言标准</li>
+            <li><strong>开源生态反哺</strong> — Sponsor 开源力量，将社区最佳实践反向引入公司基建</li>
+          </ul>
+        </div>
+        <div style="border-left:1px solid var(--border-dark);padding-left:var(--gap-lg)">
+          <ul class="bullets t-body">
+            <li><strong>AI 采购推动</strong> — 推动 MaaS 平台引入大语言模型，保障数据安全前提下支撑大规模 AI 使用</li>
+            <li><strong>AI 友好演进</strong> — 推动 OA 等内部系统向 AI 友好方向改造，降低 Agent 对接门槛</li>
+            <li><strong>内网困境</strong> — 公司对开源政策保守，大量基建成果无法在公开简历中完整展示</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="foot reveal"><span>Component · Scaffold · Deploy · Code Share</span><span>Full-stack Infrastructure Builder</span></div>
+  </div>
+</section>
+
+<!-- =========================================
+     SLIDE 8: Open Source Works (Cream)
+     ========================================= -->
+<section class="slide cream">
+  <div class="slide-inner">
+    <div class="chrome reveal"><span class="chrome-label">Projects</span><span class="chrome-counter">07 / 10</span></div>
+    <div class="content">
+      <p class="t-label reveal" style="color:var(--gold);margin-bottom:var(--gap-sm)">开源 & 内部作品</p>
+      <h2 class="t-h2 reveal" style="margin-bottom:var(--gap-lg)">独立构建的 <em>技术产品矩阵</em></h2>
+      <table class="data-table reveal">
+        <thead><tr><th style="width:22%">项目</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>HUI</td><td>企业级 Vue 组件库，内网下载量 2M，累计发布 800+ 版本，基于 Element UI / Element Plus 二次开发，80+ 贡献者</td></tr>
+          <tr><td>vessel-vite</td><td>Vite 脚手架系列，覆盖 Web / H5，集成现代工具链，构建速度提升 5x+</td></tr>
+          <tr><td>chat-anything</td><td>AI Agent 桌面客户端（React + Electron），集成 Skills / MCP，已落地企业项目</td></tr>
+          <tr><td>ezsvs</td><td>Easy Serverless — 对标 Vercel，已部署 80+ 应用，支持前端 / Docker / K8s</td></tr>
+        </tbody>
+      </table>
+      <p class="t-caption reveal" style="margin-top:var(--gap-md);color:var(--text-hint-light)">
+        另有多项主导的公司内部基建项目（code-fun、内部发布平台等），因公司开源政策暂未公开。
+      </p>
+    </div>
+    <div class="foot reveal"><span>Creator & Maintainer</span><span>Internal Impact: 80+ apps · 80+ contributors</span></div>
+  </div>
+</section>
+
+<!-- =========================================
+     SLIDE 9: Skills Deep-dive (Navy)
+     ========================================= -->
+<section class="slide navy">
+  <div class="slide-inner">
+    <div class="chrome reveal"><span class="chrome-label">Skills</span><span class="chrome-counter">08 / 10</span></div>
+    <div class="content">
+      <p class="t-label reveal" style="color:var(--gold);margin-bottom:var(--gap-sm)">技术能力</p>
+      <h2 class="t-h2 reveal" style="margin-bottom:var(--gap-lg)">前端工程 <em>×</em> Agent Harness 技能矩阵</h2>
+      <div class="stat-grid">
+        <div class="stat-card reveal">
+          <h3 class="t-h3" style="margin-bottom:6px;color:var(--text-warm)">前端工程</h3>
+          <p class="t-body" style="font-size:17px">JS / TS · Vue 2/3 · React · Electron · Vite · Node.js · UnoCSS · Docker · CI/CD</p>
+        </div>
+        <div class="stat-card reveal">
+          <h3 class="t-h3" style="margin-bottom:6px;color:var(--text-warm)">Agent & AI</h3>
+          <p class="t-body" style="font-size:17px">Claude Code / Cursor 高强度使用 · Skills 开发 · MCP · Agent Loop · Prompt Engineering · Context Engineering</p>
+        </div>
+        <div class="stat-card reveal">
+          <h3 class="t-h3" style="margin-bottom:6px;color:var(--text-warm)">工程化</h3>
+          <p class="t-body" style="font-size:17px">组件库架构 · 脚手架设计 · Monorepo 管理 · 代码规范与审查 · E2E 测试</p>
+        </div>
+      </div>
+      <div class="rule-full reveal" style="margin:var(--gap-lg) 0"></div>
+      <div class="cols-2 reveal">
+        <div>
+          <h3 class="t-h3" style="margin-bottom:var(--gap-sm)">Agent Harness 课题理解</h3>
+          <p class="t-body">对 <strong>Skills</strong>、<strong>Context Engineering</strong>、<strong>MCP</strong>、<strong>Subagent</strong>、<strong>Agent Loop</strong>、<strong>Multi-Agent</strong> 等核心课题有第一手实践与系统性理解。</p>
+        </div>
+        <div style="border-left:1px solid var(--border-dark);padding-left:var(--gap-lg)">
+          <h3 class="t-h3" style="margin-bottom:var(--gap-sm)">专业态度</h3>
+          <ul class="bullets t-body">
+            <li>博客年均输出 <strong>10+ 篇技术文章</strong></li>
+            <li>对薪资不敏感，更看重<strong>发挥价值的平台</strong></li>
+            <li>非科班自学转前端，<strong>极强的自驱学习能力</strong></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="foot reveal"><span>Self-taught · Life-long Learner</span><span>Focus: Value · Impact · Growth</span></div>
+  </div>
+</section>
+
+<!-- =========================================
+     SLIDE 10: CLOSING (Cream, chromeless)
+     ========================================= -->
+<section class="slide cream cover">
+  <div class="slide-inner">
+    <div class="content reveal" style="text-align:center">
+      <p class="t-label" style="color:var(--gold);margin-bottom:var(--gap-sm)">EDUCATION · CLOSING</p>
+      <div class="rule-gold" style="margin:24px auto 32px"></div>
+      <h2 class="t-h2" style="margin-bottom:var(--gap-md)">浙江大学宁波理工学院</h2>
+      <p class="t-lead" style="margin-bottom:var(--gap-sm)">生命科学与技术 · 本科 · 2004–2008</p>
+      <div class="rule-full" style="width:200px;margin:var(--gap-lg) auto"></div>
+      <p class="t-lead" style="font-size:22px;max-width:900px;margin:0 auto">
+        非科班自学转型，<em>10 余年</em>前端深耕。<br>梦想是让更多各行各业的人能够<strong style="color:var(--gold)">真正用好 AI</strong>。
+      </p>
+      <p class="t-caption" style="margin-top:48px;color:var(--text-hint-light)">
+        <a href="https://www.xxholly32.com" target="_blank" style="color:inherit;text-decoration:none">www.xxholly32.com</a> &nbsp;·&nbsp;
+        <a href="https://github.com/xxholly32" target="_blank" style="color:inherit;text-decoration:none">github.com/xxholly32</a> &nbsp;·&nbsp;
+        <a href="mailto:xxholly32@163.com" style="color:inherit;text-decoration:none">xxholly32@163.com</a>
+      </p>
+    </div>
+  </div>
+</section>
+
+</main>
+</div>
+
+<script>
+/* ===========================================
+   SLIDE PRESENTATION CONTROLLER
+   =========================================== */
+class SlidePresentation {
+  constructor() {
+    this.stage = document.getElementById('deckStage');
+    this.slides = document.querySelectorAll('.slide');
+    this.current = 0;
+    this.total = this.slides.length;
+    this.setupScale();
+    this.setupNav();
+    this.showSlide(0);
+  }
+
+  setupScale() {
+    const scale = () => {
+      const f = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+      this.stage.style.transform = `translate(${(window.innerWidth - 1920 * f) / 2}px, ${(window.innerHeight - 1080 * f) / 2}px) scale(${f})`;
+    };
+    scale();
+    window.addEventListener('resize', scale);
+  }
+
+  setupNav() {
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); this.next(); }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); this.prev(); }
+    });
+    let touchX = 0;
+    this.stage.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; });
+    this.stage.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - touchX;
+      if (dx < -50) this.next();
+      if (dx > 50) this.prev();
+    });
+    this.stage.addEventListener('wheel', e => {
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      if (e.deltaY > 0) this.next(); else this.prev();
+    }, { passive: true });
+  }
+
+  showSlide(i) {
+    this.current = Math.max(0, Math.min(i, this.total - 1));
+    this.slides.forEach((s, j) => {
+      s.classList.toggle('active', j === this.current);
+      s.classList.toggle('visible', j === this.current);
+    });
+  }
+
+  next() { this.showSlide(this.current + 1); }
+  prev() { this.showSlide(this.current - 1); }
+}
+
+new SlidePresentation();
+</script>
+</body>
+</html>
