@@ -1,7 +1,7 @@
 # 相霄 | 资深前端工程师 × AI Agent 实践者
 
 - **GitHub**: [github.com/xxholly32](https://github.com/xxholly32)
-- **博客**: [xxholly32.github.io](https://xxholly32.github.io)
+- **博客**: [www.xxholly32.com](https://www.xxholly32.com/)
 - **邮箱**: xxholly32@163.com
 - **所在地**: 浙江·杭州
 
